@@ -1,4 +1,4 @@
-# Unit 5a – Mini Project 1
+# Mini Project 1
 
 ## Web Cryptography Implementation Using JavaScript (WebCrypto API)
 

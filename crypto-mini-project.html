@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>WebCrypto Integrated Mini Project</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(to right, #1f2937, #374151);
+    margin: 0;
+    padding: 30px;
+    color: #111;
+}
+
+.container {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    max-width: 900px;
+    margin: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+h2 {
+    background: #2563eb;
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.section {
+    margin-bottom: 30px;
+}
+
+.label {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.box {
+    background: #f3f4f6;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 5px;
+    word-wrap: break-word;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+textarea {
+    width: 100%;
+    height: 70px;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+button {
+    padding: 8px 12px;
+    margin: 5px 5px 5px 0;
+    border: none;
+    border-radius: 5px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+.small-note {
+    font-size: 12px;
+    color: #555;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>WebCrypto Integrated Mini Project</h1>
+
+<div class="section">
+<h2>Message Input</h2>
+<textarea id="message">Hello 123</textarea>
+</div>
+
+<div class="section">
+<h2>Symmetric Encryption (AES)</h2>
+
+<button onclick="aes('AES-GCM',128)">AES-GCM 128</button>
+<button onclick="aes('AES-GCM',256)">AES-GCM 256</button>
+<button onclick="aes('AES-CBC',256)">AES-CBC 256</button>
+<button onclick="aes('AES-CTR',256)">AES-CTR 256</button>
+
+<div class="label">Generated Key (Hex)</div>
+<div class="box" id="aesKey"></div>
+
+<div class="label">Ciphertext (Hex)</div>
+<div class="box" id="aesCipher"></div>
+
+<div class="label">Decrypted Text</div>
+<div class="box" id="aesPlain"></div>
+</div>
+
+<div class="section">
+<h2>Hashing</h2>
+<button onclick="hash('SHA-1')">SHA-1</button>
+<button onclick="hash('SHA-256')">SHA-256</button>
+<button onclick="hash('SHA-384')">SHA-384</button>
+<button onclick="hash('SHA-512')">SHA-512</button>
+
+<div class="label">Hash Output</div>
+<div class="box" id="hashOutput"></div>
+</div>
+
+<div class="section">
+<h2>ECC Signatures (P-256)</h2>
+<button onclick="signECC('SHA-1')">P256 / SHA-1</button>
+<button onclick="signECC('SHA-256')">P256 / SHA-256</button>
+
+<div class="label">Signature (Hex)</div>
+<div class="box" id="eccOutput"></div>
+</div>
+
+<div class="section">
+<h2>RSA Signatures</h2>
+<button onclick="signRSA(1024)">RSA-1024</button>
+<button onclick="signRSA(2048)">RSA-2048</button>
+
+<div class="label">Signature (Hex)</div>
+<div class="box" id="rsaOutput"></div>
+</div>
+
+<p class="small-note">
+Educational demo only. Keys are exported for display. In real systems, private keys must not be exposed.
+</p>
+
+</div>
+
+<script>
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+function getMessage() {
+    return encoder.encode(document.getElementById("message").value);
+}
+
+function show(id, value) {
+    document.getElementById(id).textContent = value;
+}
+
+function bufferToHex(buffer) {
+    return [...new Uint8Array(buffer)]
+        .map(b => b.toString(16).padStart(2,"0"))
+        .join("");
+}
+
+/* AES */
+
+async function aes(mode, size) {
+    try {
+        const key = await crypto.subtle.generateKey(
+            { name: mode, length: size },
+            true,
+            ["encrypt","decrypt"]
+        );
+
+        const rawKey = await crypto.subtle.exportKey("raw", key);
+        show("aesKey", bufferToHex(rawKey));
+
+        const data = getMessage();
+
+        let algorithm;
+        if (mode === "AES-GCM") {
+            algorithm = { name: mode, iv: crypto.getRandomValues(new Uint8Array(12)) };
+        } else if (mode === "AES-CBC") {
+            algorithm = { name: mode, iv: crypto.getRandomValues(new Uint8Array(16)) };
+        } else {
+            algorithm = { name: mode, counter: crypto.getRandomValues(new Uint8Array(16)), length: 64 };
+        }
+
+        const encrypted = await crypto.subtle.encrypt(algorithm, key, data);
+        show("aesCipher", bufferToHex(encrypted));
+
+        const decrypted = await crypto.subtle.decrypt(algorithm, key, encrypted);
+        show("aesPlain", decoder.decode(decrypted));
+
+    } catch (e) {
+        alert("AES Error: " + e.message);
+    }
+}
+
+/* Hash */
+
+async function hash(type) {
+    try {
+        const digest = await crypto.subtle.digest(type, getMessage());
+        show("hashOutput", bufferToHex(digest));
+    } catch (e) {
+        alert("Hash Error: " + e.message);
+    }
+}
+
+/* ECC */
+
+async function signECC(hashType) {
+    try {
+        const keyPair = await crypto.subtle.generateKey(
+            { name: "ECDSA", namedCurve: "P-256" },
+            true,
+            ["sign"]
+        );
+
+        const signature = await crypto.subtle.sign(
+            { name: "ECDSA", hash: hashType },
+            keyPair.privateKey,
+            getMessage()
+        );
+
+        show("eccOutput", bufferToHex(signature));
+    } catch (e) {
+        alert("ECC Error: " + e.message);
+    }
+}
+
+/* RSA */
+
+async function signRSA(size) {
+    try {
+        const keyPair = await crypto.subtle.generateKey(
+            {
+                name: "RSASSA-PKCS1-v1_5",
+                modulusLength: size,
+                publicExponent: new Uint8Array([1,0,1]),
+                hash: "SHA-256"
+            },
+            true,
+            ["sign"]
+        );
+
+        const signature = await crypto.subtle.sign(
+            "RSASSA-PKCS1-v1_5",
+            keyPair.privateKey,
+            getMessage()
+        );
+
+        show("rsaOutput", bufferToHex(signature));
+    } catch (e) {
+        alert("RSA Error: " + e.message);
+    }
+}
+</script>
+
+</body>
+</html>

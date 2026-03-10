@@ -159,8 +159,7 @@ Project documentation.
 
 1. Download or clone the repository.
 
-```
-git clone https://github.com/ShahdAli777/webcrypto-mini-project.git
+git clone https://github.com/ShahdAli777/webcrypto-mini-project.git](https://github.com/ShahdAli777/Aprototype_appliedcrypto.git
 ```
 
 2. Open the project folder.
